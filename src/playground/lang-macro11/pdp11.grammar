@@ -1,0 +1,176 @@
+@top Program { source_line* }
+
+source_line {
+    line nl
+}
+
+line {
+    Assignment  Comment?
+  | Code        Comment?
+  | blank_line  Comment?
+}
+
+blank_line { }
+Assignment { Identifier Equals expression }
+Code { 
+    Label* (Directive | Opcode)  (operand ( Comma operand)*)?
+  | Label+
+}
+
+Label { Identifier ":" }
+
+@external specialize {Identifier} register from "./tokens.ts" {
+  Register
+}
+
+@external specialize {Identifier} opcode from "./tokens.ts" {
+  Opcode
+}
+
+operand {
+    expression
+  | Immediate expr_or_reg
+  | "@" expr_or_reg
+  | "(" expr_or_reg ")"
+  | "-(" expr_or_reg ")"
+  | "("  expr_or_reg ")+"
+  }
+
+expr_or_reg { expression | Register }
+
+expression {
+  term (Operator term)*
+}
+
+term {
+    Identifier
+  | Number
+  | OpenExpr expression CloseExpr
+}
+
+OpenExpr[closedBy="CloseExpr"] { "<" }
+CloseExpr[openedBy="OpenExpr"] { "<" }
+
+Number {
+  complement_operator? (
+      raw_number
+    | octal_number
+    | decimal_number
+    | binary_number
+    | hex_number
+  )
+}
+@tokens {
+  binary_number  { "^" $[bB] $[01]+ }
+  raw_number     {           $[0-7]+ }
+  octal_number   { "^" $[oO] $[0-7]+ }
+  decimal_number { "^" $[dD] $[0-9]+ }
+  hex_number     { "^" $[xX] $[0-9a-fA-F]+ }
+  complement_operator { "^" $[cC] }
+  nl    { $[\r\n]+ }
+  space { $[ \t]+ }
+  Directive { "." @asciiLetter+ "="?}
+  Equals { "=" }
+  Comment { ";" ![\n]* }
+  Identifier { $[a-zA-Z$] $[a-zA-Z0-0$_.]* }
+  Immediate  { "#" }
+  Operator { $[ +\-\*/&!] }
+  Comma { "," }
+
+
+}
+
+//@skip { space  }
+
+//source_line {
+//  space? line? space Comment? nl
+//}
+//
+//line {
+//    codegen_line 
+//  | assignment_line
+//}
+//
+//codegen_line { 
+//    Identifier "'" space (Keyword (space operands)?)? 
+//}
+//
+//assignment_line { Identifier "=" expression }
+//Identifier { identifier }
+//
+//operands {
+//    operand ( space "," space operand)?
+//}  
+//
+//
+//expression {
+//    (Number | "<" | ">" | Identifier | Operator )+
+//}
+//
+//value {
+//    Register | expression
+//}
+//  
+//Register {
+//    @specialize<identifier, "r0"> 
+//  | @specialize<identifier, "r1"> 
+//  | @specialize<identifier, "r2"> 
+//  | @specialize<identifier, "r3"> 
+//  | @specialize<identifier, "r4"> 
+//  | @specialize<identifier, "r5"> 
+//  | @specialize<identifier, "r6"> 
+//  | @specialize<identifier, "r7"> 
+//  | @specialize<identifier, "R0"> 
+//  | @specialize<identifier, "R1"> 
+//  | @specialize<identifier, "R2"> 
+//  | @specialize<identifier, "R3"> 
+//  | @specialize<identifier, "R4"> 
+//  | @specialize<identifier, "R5"> 
+//  | @specialize<identifier, "R6"> 
+//  | @specialize<identifier, "R7"> 
+//  | @specialize<identifier, "sp"> 
+//  | @specialize<identifier, "sP"> 
+//  | @specialize<identifier, "Sp"> 
+//  | @specialize<identifier, "SP"> 
+//  | @specialize<identifier, "pc"> 
+//  | @specialize<identifier, "pC"> 
+//  | @specialize<identifier, "Pc"> 
+//  | @specialize<identifier, "PC"> 
+//}
+//
+//@tokens {
+//
+//  Comment { ";" ![\n]* }
+//
+//  identifier_start { $[$a-zA-Z_] }
+//  identifier_rest  { $[$a-zA-Z_0-9.]+ }
+//  identifier       { identifier_start identifier_rest }
+//  space { $[ \t]+ }
+//
+//
+//  Keyword { 
+//    directive |
+//    "adc" | "adcb" | "add" | "ash" | "ashc" | "asl" | "aslb" | "asr" | "asrb" | "bcc" | "bcs" | "beq" | "bge" | "bgt" | "bhi" | 
+//    "bhis" | "bic" | "bicb" | "bis" | "bisb" | "bit" | "bitb" | "ble" | "blo" | "blos" | "blt" | "bmi" | "bne" | "bpl" | "bpt" | "br" | 
+//    "bvc" | "bvs" | "ccc" | "clc" | "cln" | "clr" | "clrb" | "clv" | "clz" | "cmp" | "cmpb" | "com" | "comb" | "dec" | "decb" | "div" | 
+//    "emt" | "halt" | "inc" | "incb" | "iot" | "jmp" | "jsr" | "mfpd" | "mfpi" | "mfps" | "mov" | "movb" | "mtpd" | "mtpi" | "mtps" | "mul" | 
+//    "neg" | "negb" | "nop" | "reset" | "rol" | "rolb" | "ror" | "rorb" | "rti" | "rts" | "sbc" | "sbcb" | "scc" | "sec" | "sen" | "sev" | 
+//    "sez" | "sob" | "Asub" | "swab" | "sxt" | "trap" | "tst" | "tstb" | "wait" | "xor"
+//  }
+//
+//  Operator { $[-+*/!&] }
+//
+//  Number { octalnumber | binarynumber | decimalnumber | hexnumber }
+//  octalnumber   { "^" $[oO] $[0-7]+ | $[0-7]+ }
+//  binarynumber  { "^" $[bB] $[0-1]+ }
+//  decimalnumber { "^" $[dD] $[0-9]+ }
+//  hexnumber     { "^" $[xX] $[0-9a-fA-F]+ }
+//  characterconstant {
+//      "'" char
+//      | "\"" char char
+//  }
+//  char { $[\u{20}\u{21}\u{23}-\u{5b}\u{5d}-\u{10ffff}] | "\\" esc }
+//  esc  { $["\\\/bfnrt] | "u" hex hex hex hex }
+//  hex  { $[0-9a-fA-F] }
+//}
+//
