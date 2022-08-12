@@ -1,31 +1,44 @@
-// import { PswModel } from '../../playground'
-// import { Bit } from 'pdp11-assembler-emulator'
+import { el, setAttr, text } from "redom"
+import { Bit } from "../../../assembler-emulator"
 
-// function OneBit(props: { state: boolean, label: string, title: string }) {
+function OneBit(dispatcher: Dispatcher, initialPsw: number, { bit, label, title }) {
+  const element =  el(`div.bit.${label}`, { title }, text(label))
 
-//   function debug(val: boolean) {
-//     console.log("In onebit", props.label, val)
-//     return val
-//   }
+  function updateState(psw: number) {
+    const existingClass = element.classList.toString()
 
-//   return (
-//     <div class={`bit ${props.label} ${ debug(props.state) ? "is-set" : ""}`} title={props.title}>
-//        {props.label}
-//     </div>
-//   )
-// }
+    if (psw & bit)
+      setAttr(element, { class: `bit ${label} is-set` })
+    else
+      setAttr(element, { class: `bit ${label}` })
+  }
 
-// export function PSW(props: {psw: PswModel}) {
-//   const psw = props.psw[0]()
+  updateState(initialPsw)
 
-//   return (
-//     <ul class="PSW">
-//         <li><OneBit state={!!(psw & Bit.N)} label="N" title="last result was negative" /></li>
-//         <li><OneBit state={!!(psw & Bit.Z)} label="Z" title="last result was zero" /></li>
-//         <li><OneBit state={!!(psw & Bit.C)} label="C" title="last result generated unsigned carry" /></li>
-//         <li><OneBit state={!!(psw & Bit.V)} label="V" title="last result overflowed the signed result" /></li>
-//     </ul>
-//   )
-// }
+  dispatcher.register("StateUpdated", (state: StateUpdated) => {
+    const psw = state.deltas.psw
+    updateState(psw.toWord())
+  })
+
+  return element
+}
+
+import { Dispatcher, StateUpdated } from "../../playground"
+
+const Fields = [
+  { bit: Bit.N, label: "N", title: "last result was negative" },
+  { bit: Bit.Z, label: "Z", title: "last result was zero" },
+  { bit: Bit.C, label: "C", title: "last result generated unsigned carry" },
+  { bit: Bit.V, label: "V", title: "last result overflowed the signed result" },
+]
+export function PSW(dispatcher: Dispatcher) {
+  const psw = 0
+
+  const fields = Fields.map(f => OneBit(dispatcher, psw, f))
+
+  return el("ul.PSW", [
+    fields.map(f => el("li", f))
+  ])
+}
 
 

@@ -55,11 +55,14 @@ export enum LineType {
   ErrorLine      = "ErrorLine"
 }
 
+let line_id_counter = 1
+
 export abstract class SourceLine {
   type: LineType
   comment: string
   line: number
   height_in_lines = 1
+  line_id = (line_id_counter++).toString()
 
   // comment
   constructor(info: ISourceLine) {
@@ -71,7 +74,6 @@ export abstract class SourceLine {
 
 export class BlankLine extends SourceLine {
   type = LineType.BlankLine
-
 
 }
 
@@ -127,7 +129,7 @@ function calculate_height(addr: number, bytes: number[]) {
   if (len & 1)
     len++
 
-  return Math.ceil((len+2)/6)
+  return Math.floor((len+5)/6)
 }
 
 export class CodegenLine extends SourceLine {

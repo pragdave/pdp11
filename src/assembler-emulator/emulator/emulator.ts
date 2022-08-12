@@ -39,7 +39,6 @@ export class Emulator implements EmulatorDecoders {
   machineState: MachineState
   registers: MSRegisters
   memory: MSMemory
-  // auditor: Auditor
 
   priorPC = 0
 
@@ -54,6 +53,10 @@ export class Emulator implements EmulatorDecoders {
     return this.machineState.capture_updates(() =>
       this.machineState.loadAssembledCode(assemblerOutput)
     )
+  }
+
+  resetEmulator() {
+    return this.machineState.reset()
   }
 
   step() {

@@ -1,6 +1,6 @@
-import { Decoration, EditorView, keymap, drawSelection, highlightSpecialChars } from "@codemirror/view"
+import { Decoration, EditorView, keymap, drawSelection, highlightSpecialChars, GutterMarker, gutter } from "@codemirror/view"
 import { lineNumbers  } from "@codemirror/view"
-import { EditorState, Range, StateField, Text } from "@codemirror/state"
+import { EditorState, Range, RangeSet, StateEffect, StateField, Text } from "@codemirror/state"
 import {defaultKeymap} from "@codemirror/commands"
 import { AssembledLine, ErrorLine, LineType, SourceCode } from "../assembler-emulator"
 
@@ -9,31 +9,32 @@ import { classHighlighter} from "@lezer/highlight"
 import {syntaxHighlighting} from "@codemirror/language"
 import { linter, lintGutter, Diagnostic } from "@codemirror/lint"
 
-export type SourceChangedCB = (newSource: string) => SourceCode
+export type SourceChangedCB = (newSource: string, firstTime?: boolean) => SourceCode
 
-export function bytesIntoWords(address: number, bytes: number[]) {
-  if (!bytes)
-    return []
+// export function bytesIntoWords(address: number, bytes: number[]) {
+//   if (!bytes)
+//     return []
 
-  const words = []
-  const len = bytes.length
-  let index = 0
+//   const words = []
+//   const len = bytes.length
+//   let index = 0
 
-  if ((address & 1) === 1 && index < len)
-    words.push(bytes[index++] << 8)
+//   if ((address & 1) === 1 && index < len)
+//     words.push(bytes[index++] << 8)
 
-  while (index < len - 1) {
-    words.push(bytes[index + 1] << 8 | bytes[index])
-    index += 2
-  }
+//   while (index < len - 1) {
+//     words.push(bytes[index + 1] << 8 | bytes[index])
+//     index += 2
+//   }
 
-  if (index < len) 
-    words.push(bytes[index])
+//   if (index < len) 
+//     words.push(bytes[index])
 
-  return words
-}
+//   return words
+// }
 
 
+// local helper iterator used by CM hooks
 type LineCallback = (editorLine: string, assembledLine: AssembledLine, pos: number, lineNo: number) => void
 function forEachLine(doc: Text, assembled: SourceCode, cb: LineCallback) {
     let pos = 0, lineNo = 0
@@ -44,8 +45,8 @@ function forEachLine(doc: Text, assembled: SourceCode, cb: LineCallback) {
   }
 }
 
+// calculate line heights based on the amount of generated code
 function getLineHeights(assembled: SourceCode, doc: Text) {
-
   const spacers: Range<Decoration>[] = []
 
   forEachLine(doc, assembled, (_editorLine: string, assembledLine: AssembledLine, pos: number, _lineNo: number) => {
@@ -69,7 +70,7 @@ function getLineHeights(assembled: SourceCode, doc: Text) {
 //
 const reassembleOnChanges = (sourceChangedCB: SourceChangedCB) => StateField.define<SourceCode>({
   create(state: EditorState) {
-    return sourceChangedCB(state.doc.toString())
+    return sourceChangedCB(state.doc.toString(), /* firsttime = */ true)
   },
 
   update(prev: SourceCode, tr): SourceCode {
@@ -128,6 +129,39 @@ const extractErrors = (assemblerStateField: StateField<SourceCode>) => linter((v
   return diagnostics
 })
 
+///////////////////////// show the PC
+
+const currentLineMarker = new class extends GutterMarker {
+  toDOM() { return document.createTextNode("▸") }
+}
+
+const pcEffect = StateEffect.define<{ pos: number }>({
+})
+const pcState = StateField.define<RangeSet<GutterMarker>>({
+  create() {
+    return RangeSet.empty 
+  },
+  update(set, transaction) {
+    set = set.map(transaction.changes)
+    for (let e of transaction.effects) {
+      if (e.is(pcEffect)) {
+        set = RangeSet.empty.update({add: [currentLineMarker.range(e.value.pos)]})
+      }
+    }
+    return set
+  }
+})
+
+const  pcGutterMarker = [
+  pcState,
+  gutter({
+    class: "cm-pc-gutter",
+    markers: v => v.state.field(pcState),
+    initialSpacer: () => currentLineMarker,
+  })
+]
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 export class Editor {
   view: EditorView
@@ -142,13 +176,33 @@ export class Editor {
         highlightSpecialChars(),
         assembler,
         updateLineHeights(assembler),
-        extractErrors(assembler),
-        lintGutter(),
-        lineNumbers(),
+        // extractErrors(assembler),
+        // lintGutter(),
+        // pcGutterMarker,
         Macro11(),
         syntaxHighlighting(classHighlighter),
       ],
       parent: this.parent,
     })
+  }
+
+  // refresh(pc: number) {
+  //   let pos = 0, lineNo = 0
+  //   const assembled = this.view.state.field(this.assembler)
+  //   for (let editorLine of this.view.state.doc.iterLines()) {
+  //     let assembledLine = assembled.sourceLines[lineNo++]
+
+  //     if (assembledLine.type == "CodegenLine" && (assembledLine as CodegenLine).address == pc) {
+  //       this.view.dispatch({
+  //         effects: pcEffect.of({ pos: this.view.lineBlockAt(pos).from })
+  //       })
+  //     }
+  //     pos += editorLine.length + 1
+  //   }
+  // }
+
+  revert_to_original_source() {
+    const changes = [{ from: 0, to: this.view.state.doc.length, insert: this.source }]
+    this.view.dispatch({ changes })
   }
 }

@@ -58,6 +58,11 @@ export function CodegenLine(dispatcher: Dispatcher, line: CLT, memoryTracker: Me
 
   dispatcher.register("StateUpdated", (state: StateUpdated) => {
     memoryTracker.recordDeltas(state.deltas.memory_delta)
+      const bytes = memoryTracker.updatesIn(address, length)
+      if (bytes && bytes.length) {
+        words = bytesIntoWords(address, length, bytes)
+      }
+      elements.forEach((e, i) => e.update(words[i]))
   })
 
   return {
@@ -65,13 +70,13 @@ export function CodegenLine(dispatcher: Dispatcher, line: CLT, memoryTracker: Me
       el("span.address", PGNumber(dispatcher, address)),
       el(".generated-bytes", wordLines),
     ),
-    memoryUpdated: () => {
-      const bytes = memoryTracker.updatesIn(address, length)
-      if (bytes && bytes.length) {
-        words = bytesIntoWords(address, length, bytes)
-      }
-      elements.forEach((e, i) => e.update(words[i]))
-    }
+    // memoryUpdated: () => {
+    //   const bytes = memoryTracker.updatesIn(address, length)
+    //   if (bytes && bytes.length) {
+    //     words = bytesIntoWords(address, length, bytes)
+    //   }
+    //   elements.forEach((e, i) => e.update(words[i]))
+    // }
   }
 
 }

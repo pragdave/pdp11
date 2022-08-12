@@ -14,7 +14,7 @@ export enum RunningState  {
   Running,
   Trapped,
   Halted,
-  Waiting,
+    Waiting,
 }
 
 export interface Callbacks {
@@ -90,7 +90,17 @@ export class MachineState implements EventDispatcher, MemoryWriteRecorder, Regis
 
   capture_updates(to_do: () => void) {
     this.reset_deltas()
-    to_do()
+    const initial_pc = this.registers.pc
+
+    try {
+      to_do()
+    }
+    catch (error) {
+      this.deltas.additional_status = {
+        message: error.message,
+        pc: initial_pc
+      }
+    }
     this.deltas.psw = this.psw
     this.deltas.running_state = this.runningState
     return this.deltas
@@ -119,11 +129,7 @@ export class MachineState implements EventDispatcher, MemoryWriteRecorder, Regis
     this.registers = new Registers(this)
     this.runningState = RunningState.Paused
     this.reset_deltas()
-    // this.dispatch([V
-    //   ce.memoryClear(), 
-    //   ce.registersClear(),
-    //   ce.changeRunningState(RunningState.Paused),
-    // ])
+    return this.deltas
   }
 
   record_register_write(reg: Register, value: Value) {

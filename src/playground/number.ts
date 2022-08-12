@@ -1,4 +1,4 @@
-import { el, setStyle, text } from "redom"
+import { el, setAttr, setChildren, setStyle, text } from "redom"
 import { Dispatcher } from "./playground"
 
 
@@ -36,32 +36,46 @@ export type NumberEvent = {
 
 export type PGNumberType = { el: HTMLSpanElement, update: (newVal: number) => void }
 
-export function PGNumber(dispatcher: Dispatcher, val: number, cls?: string): PGNumberType {
+export function PGNumber(dispatcher: Dispatcher, val: number): PGNumberType {
   let base = 16
   let format = Formatters[base]
 
-  const popup = el(".number-popup", { style: { display: "none" }}, [
-    el(".b", text(binaryFormatter(val))),
-    el(".o", text(octalFormatter(val))),
-    el(".d", text(decimalFormatter(val))),
-    el(".x", text(hexFormatter(val))),
-  ])
+  function createPopup(val: number) {
+    return el(".number-popup", { style: { display: "none" }}, [
+      el(".b", text(binaryFormatter(val))),
+      el(".o", text(octalFormatter(val))),
+      el(".d", text(decimalFormatter(val))),
+      el(".x", text(hexFormatter(val))),
+    ])
+  }
 
-  const span = el(`span.number.n-${base}`, text(format(val)), popup)
-  span.onmouseenter = () => setStyle(popup, { display: "block" })
-  span.onmouseleave = () => setStyle(popup, { display: "none" })
+  let popup = createPopup(val)
+
+  function replaceNumberInPlace(oldNumber: HTMLElement, newNumber: number) {
+    const cls = `number n-${base}`
+    const txt = format(newNumber)
+    setAttr(oldNumber, { class: cls })
+    setChildren(oldNumber, [ text(txt), popup])
+    oldNumber.onmouseenter = () => setStyle(popup, { display: "block" })
+    oldNumber.onmouseleave = () => setStyle(popup, { display: "none" })
+    return oldNumber
+  }
+
+  const number = replaceNumberInPlace(el("span"), val)
+
 
   dispatcher.register(ChangeBaseEventName, (event: NumberEvent) => {
     base = event.newBase
     format = Formatters[base]
-    span.textContent = format(val)
+    replaceNumberInPlace(number, val)
   })
 
   return {
-    el: span,
+    el: number,
     update: (newVal: number) => {
       val = newVal
-      span.textContent = format(val)
+      popup = createPopup(val)
+      replaceNumberInPlace(number, val)
     }
   }
 }

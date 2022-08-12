@@ -5,10 +5,12 @@ import { Playground } from "./playground"
 
 
 const defaultSource = 
-  `  mov #12345, target
+  `. = 400
+start:
+   mov target, r0
+; a comment line
    halt
 target: .word 0
-
 `
 
 const x = `; Convert number in r0 to octal string in _buff_
